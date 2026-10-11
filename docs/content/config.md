@@ -22,7 +22,7 @@ return new Dumbo\Jumbo\Site(__DIR__, [
 | `assets` | `null` | `"cdn"` or `"local"` for `asset()`. The CDN in development and local in production by default. |
 | `cdn` | hop.js | The CDN for `asset()` |
 | `markdown` | | `extensions`, `config`, `highlight` and `images`. See [Content](/docs/content). |
-| `images` | | `widths`, `format`, `quality` and `cache`. See [Images](/docs/images). |
+| `images` | | `loader`, `widths`, `format`, `quality` and `cache`. See [Images](/docs/images). |
 | `redirects` | `[]` | See [Redirects](/docs/redirects) |
 | `i18n` | | `locales`, `default` and `prefixDefault`. See [Locales](/docs/locales). |
 | `build` | | `format`: `"directory"` or `"file"`. See [Builds](/docs/builds). |

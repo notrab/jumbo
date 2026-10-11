@@ -59,12 +59,16 @@ class Site
             "images" => true,
         ],
         "images" => [
+            // What resizes images: null for GD on this server, or a loader
+            // for an image CDN, like new Images\Bunny("https://acme.b-cdn.net")
+            "loader" => null,
             // The widths resized images can be made at
             "widths" => [320, 640, 960, 1280, 1920, 2560],
             // "webp", "avif", "png", "jpg", or null to keep each image's own
             "format" => "webp",
+            // 0 to 100, or null for the loader's default
             "quality" => 80,
-            // Where resized images are kept. Defaults to the temp directory.
+            // Where GD keeps resized images. Defaults to the temp directory.
             "cache" => null,
         ],
         // "/old" => "/new", or "/blog/[slug]" => ["to" => "/posts/[slug]", "status" => 302]
