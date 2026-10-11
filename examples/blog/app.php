@@ -9,13 +9,24 @@ require __DIR__ . "/vendor/autoload.php";
 class Blog extends Dumbo\Jumbo\Site
 {
     /**
-     * Every post in content/, newest first
+     * Every post in content/, newest first, with its date as a timestamp
      *
      * @return array<array>
      */
     public function posts(?string $tag = null): array
     {
-        $posts = array_map($this->find(...), $this->slugs());
+        $posts = array_map(function (string $slug): array {
+            $post = $this->find($slug);
+            // YAML can give dates as timestamps or strings, depending on the parser
+            $date = $post["meta"]["date"] ?? 0;
+            $post["meta"]["date"] = match (true) {
+                is_int($date) => $date,
+                $date instanceof DateTimeInterface => $date->getTimestamp(),
+                default => (int) strtotime((string) $date),
+            };
+
+            return $post;
+        }, $this->slugs());
         $posts = array_filter($posts, fn(array $post) => $tag === null || in_array($tag, $post["meta"]["tags"] ?? [], true));
         usort($posts, fn(array $a, array $b) => $b["meta"]["date"] <=> $a["meta"]["date"]);
 
