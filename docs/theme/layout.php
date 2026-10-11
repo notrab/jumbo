@@ -105,7 +105,7 @@
             try { localStorage.setItem("theme", dark ? "dark" : "light"); } catch {}
         });
 
-        const labels = { php: "PHP", bash: "Terminal", sh: "Terminal", json: "JSON", js: "JavaScript", javascript: "JavaScript", html: "HTML", css: "CSS", yaml: "YAML", dockerfile: "Dockerfile", nginx: "Nginx", apache: "Apache" };
+        const labels = { php: "PHP", bash: "Terminal", sh: "Terminal", json: "JSON", js: "JavaScript", javascript: "JavaScript", html: "HTML", css: "CSS", yaml: "YAML", dockerfile: "Dockerfile", caddyfile: "Caddyfile", jsonc: "JSON", nginx: "Nginx", apache: "Apache" };
 
         document.querySelectorAll(".prose pre:not([data-plain])").forEach((pre) => {
             const code = pre.querySelector("code");
