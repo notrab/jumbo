@@ -1,0 +1,5 @@
+body { max-width: 38rem; margin: 2rem auto; padding: 0 1rem; font: 17px/1.6 system-ui, sans-serif; color: #1c1917; background: #fffdf8; }
+nav { display: flex; gap: 1rem; margin-bottom: 2rem; font-weight: 600; }
+a { color: #7c3aed; }
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: 0.5rem; border-bottom: 1px solid #e7e5e4; }

@@ -53,7 +53,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        example: ["blog", "contact-form", "multilingual", "static-hosting"]
+        example: ["blog", "contact-form", "multilingual", "static-hosting", "bunny-sites", "bunny-optimizer"]
 
     defaults:
       run:

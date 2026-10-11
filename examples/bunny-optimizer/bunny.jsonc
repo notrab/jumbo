@@ -1,0 +1,7 @@
+{
+  "sites": {
+    "name": "watering-hole",
+    "dir": "./dist",
+    "build": "vendor/bin/jumbo build"
+  }
+}

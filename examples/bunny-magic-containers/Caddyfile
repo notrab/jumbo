@@ -1,0 +1,12 @@
+{
+	frankenphp {
+		worker /app/index.php
+	}
+}
+
+# Plain HTTP on 8080. The Magic Containers CDN endpoint handles HTTPS.
+:8080 {
+	root * /app
+	rewrite * /index.php
+	php
+}

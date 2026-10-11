@@ -143,7 +143,7 @@ jobs:
           php-version: "8.3"
       - run: composer install --no-progress
       - run: vendor/bin/jumbo build --url=https://acme.dev
-      - uses: BunnyWay/actions/deploy-site@deploy-site_0.1.0
+      - uses: BunnyWay/actions/deploy-site@deploy-site_0.1.1
         with:
           site: acme
           directory: dist
@@ -151,6 +151,8 @@ jobs:
 ```
 
 Turn on Bunny Optimizer for the site's pull zone and set the images loader to `new Bunny()` to have the CDN resize images instead of the build. See [Images](/docs/images#bunnynet).
+
+The [bunny-sites](https://github.com/notrab/jumbo/tree/main/examples/bunny-sites) and [bunny-optimizer](https://github.com/notrab/jumbo/tree/main/examples/bunny-optimizer) examples are ready to deploy this way.
 
 ### Magic Containers
 
@@ -195,5 +197,7 @@ bunny apps deploy --dockerfile --port 8080
 ```
 
 The first deploy asks for a name, region and container registry, and writes a `bunny.jsonc` to commit. After that, `bunny apps deploy --dockerfile` builds and ships each new version.
+
+The [bunny-magic-containers](https://github.com/notrab/jumbo/tree/main/examples/bunny-magic-containers) example is a guestbook set up this way, with a persistent volume for its entries and a GitHub Actions workflow that deploys every push.
 
 Containers start with an empty disk, so resized images are made again after each deploy. The CDN keeps the copies it has already served, or turn on Bunny Optimizer for the app's pull zone and use the [Bunny images loader](/docs/images#bunnynet) so the container never resizes them at all.

@@ -1,0 +1,38 @@
+# Builds the site on every push to main and deploys it with bunny sites.
+#
+# Needs a repository secret BUNNYNET_API_KEY with your bunny.net API key.
+# Run `bunny sites deploy` once first, so the site exists.
+name: Deploy to bunny.net
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: bunny-sites
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      deployments: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: gd
+
+      - run: composer install --no-progress
+
+      - run: vendor/bin/jumbo build
+
+      - uses: BunnyWay/actions/deploy-site@deploy-site_0.1.1
+        with:
+          site: trunk-show
+          directory: dist
+          api_key: ${{ secrets.BUNNYNET_API_KEY }}

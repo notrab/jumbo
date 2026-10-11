@@ -25,6 +25,15 @@ Three locales, translated content with fallbacks, a language switcher and hrefla
 ::: card title="Static hosting" href="https://github.com/notrab/jumbo/tree/main/examples/static-hosting"
 Redirects, `.html` file builds, build hooks that write `_redirects` and `_headers`, and previewing a build.
 :::
+::: card title="bunny.net sites" href="https://github.com/notrab/jumbo/tree/main/examples/bunny-sites"
+A built site deployed with `bunny sites`, with a `bunny.jsonc` and a GitHub Actions workflow.
+:::
+::: card title="Bunny Optimizer" href="https://github.com/notrab/jumbo/tree/main/examples/bunny-optimizer"
+The Bunny images loader, so Bunny Optimizer resizes, converts and compresses images on the CDN instead of the build.
+:::
+::: card title="Magic Containers" href="https://github.com/notrab/jumbo/tree/main/examples/bunny-magic-containers"
+A guestbook with page actions, running on bunny.net Magic Containers with FrankenPHP's worker mode and a persistent volume.
+:::
 ::::
 
 ## The starter

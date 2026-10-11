@@ -1,0 +1,9 @@
+{
+  // `bunny sites deploy --build` runs the build, then deploys dir.
+  // `bunny sites ci init` reads the same block to write a workflow.
+  "sites": {
+    "name": "trunk-show",
+    "dir": "./dist",
+    "build": "vendor/bin/jumbo build"
+  }
+}

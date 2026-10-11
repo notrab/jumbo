@@ -1,0 +1,11 @@
+{
+  "require": {
+    "notrab/jumbo": "^0.2"
+  },
+  "scripts": {
+    "dev": [
+      "Composer\\Config::disableProcessTimeout",
+      "jumbo dev"
+    ]
+  }
+}
