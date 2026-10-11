@@ -1,6 +1,6 @@
 # Jumbo examples
 
-Small sites that each show a few of Jumbo's features. Each one installs Jumbo and Dumbo from this repo, so run `composer install` inside it first.
+Small sites that each show a few of Jumbo's features. Each one installs Jumbo from this repo, so run `composer install` inside it first.
 
 | Example | Shows |
 | --- | --- |
@@ -9,4 +9,4 @@ Small sites that each show a few of Jumbo's features. Each one installs Jumbo an
 | [multilingual](multilingual) | Locales, translated content, a language switcher and hreflang links |
 | [static-hosting](static-hosting) | Redirects, `.html` builds, build hooks and previewing a build |
 
-To start a site of your own, run `vendor/bin/jumbo new my-site`.
+To start a site of your own, run `jumbo new my-site`.

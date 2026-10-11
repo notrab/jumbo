@@ -3,16 +3,27 @@
   "description": "Content sites on Dumbo: pages from files, layouts, Markdown and static builds.",
   "type": "library",
   "license": "MIT",
-  "homepage": "https://github.com/notrab/dumbo",
+  "homepage": "https://notrab.github.io/jumbo",
+  "keywords": [
+    "static site generator",
+    "markdown",
+    "dumbo",
+    "ssg"
+  ],
   "authors": [
     {
       "name": "Jamie Barton",
       "email": "jamie@notrab.dev"
     }
   ],
+  "support": {
+    "issues": "https://github.com/notrab/jumbo/issues",
+    "source": "https://github.com/notrab/jumbo",
+    "docs": "https://notrab.github.io/jumbo"
+  },
   "require": {
     "php": ">=8.3",
-    "notrab/dumbo": "@dev",
+    "notrab/dumbo": "^1.4.4",
     "league/commonmark": "^2.5",
     "symfony/yaml": "^7.4",
     "tempest/highlight": "^2.11"
@@ -20,12 +31,6 @@
   "require-dev": {
     "phpunit/phpunit": "^11.0"
   },
-  "repositories": [
-    {
-      "type": "path",
-      "url": "../"
-    }
-  ],
   "autoload": {
     "psr-4": {
       "Dumbo\\Jumbo\\": "src/"

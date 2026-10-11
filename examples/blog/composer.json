@@ -1,13 +1,8 @@
 {
   "require": {
-    "notrab/dumbo": "@dev",
     "notrab/jumbo": "@dev"
   },
   "repositories": [
-    {
-      "type": "path",
-      "url": "../../../"
-    },
     {
       "type": "path",
       "url": "../../"
