@@ -3,18 +3,18 @@
 namespace Dumbo\Jumbo;
 
 use Dumbo\Context;
+use Dumbo\Jumbo\Images\Loader;
+use Dumbo\Jumbo\Images\Local;
 use Nyholm\Psr7\Stream;
 use Psr\Http\Message\ResponseInterface;
 
 /**
- * Resized and converted copies of the images in public/, made with GD:
+ * Resized and converted copies of the images in public/. The images.loader
+ * config makes their URLs, and resizes them with GD on this server by
+ * default (see Images\Local), or with an image CDN like bunny.net.
  *
- *   /_image/640/photos/beach.jpg.webp    beach.jpg, 640px wide, as WebP
- *   /_image/1280/photos/beach.jpg        beach.jpg, 1280px wide, as JPEG
- *
- * Only the configured widths and each image's own width are made, so a
- * client can't ask the server for an endless number of sizes. Copies are
- * cached on disk, and static builds write each one the pages use.
+ * Only the configured widths and each image's own width are used, so a
+ * client can't ask for an endless number of sizes, and CDNs cache fewer.
  */
 final class Images
 {
@@ -29,8 +29,12 @@ final class Images
     /** @var array<string, array{int, int}|false> */
     private array $sizes = [];
 
+    private readonly Loader $loader;
+
     public function __construct(private Site $site)
     {
+        $this->loader = $site->config["images"]["loader"]
+            ?? new Local($site->config["images"]["cache"] ?? sys_get_temp_dir() . "/jumbo-images-" . substr(md5($site->root), 0, 8));
     }
 
     /**
@@ -47,12 +51,15 @@ final class Images
             return $src;
         }
 
-        $extension = self::extension($file);
-        $format = $this->format($format, $extension);
-        $path = implode("/", array_map(rawurlencode(...), explode("/", ltrim(rawurldecode(self::path($src)), "/"))));
+        $path = "/" . implode("/", array_map(rawurlencode(...), explode("/", ltrim(rawurldecode(self::path($src)), "/"))));
 
-        return "/_image/" . $this->snap($width ?? $size[0], $size[0]) . "/$path" . ($format === $extension ? "" : ".$format")
-            . "?v=" . substr(md5(filemtime($file) . ":" . filesize($file)), 0, 8);
+        return $this->loader->url(
+            $path,
+            $this->snap($width ?? $size[0], $size[0]),
+            $this->format($format, self::extension($file)),
+            $this->quality(),
+            substr(md5(filemtime($file) . ":" . filesize($file)), 0, 8),
+        );
     }
 
     /**
@@ -100,10 +107,15 @@ final class Images
     }
 
     /**
-     * The route handler for /_image/{width}/{file}
+     * The route handler for /_image/{width}/{file}, when images are resized
+     * on this server
      */
     public function serve(Context $context): ResponseInterface
     {
+        if (!$this->loader instanceof Local) {
+            return $context->notFound();
+        }
+
         $width = (int) $context->req->param("width");
         $path = "/" . rawurldecode($context->req->param("file"));
         $file = $this->source($path);
@@ -122,11 +134,7 @@ final class Images
             return $context->notFound();
         }
 
-        $cache = $this->cache() . "/" . sha1("$file:" . filemtime($file) . ":$width") . ".$format";
-
-        if (!is_file($cache)) {
-            $this->resize($file, $cache, $width, $format);
-        }
+        $cache = $this->loader->make($file, $width, $format, $this->quality());
 
         return $context->send(Stream::create(fopen($cache, "r")), self::MIME_TYPES[$format], 200, [
             // Versioned URLs change when the image does
@@ -168,17 +176,18 @@ final class Images
     }
 
     /**
-     * @return array<string> The formats GD can write here
+     * @return array<string> The formats the loader can resize and convert to
      */
     private function formats(): array
     {
-        return array_keys(array_filter([
-            "jpg" => true,
-            "jpeg" => true,
-            "png" => true,
-            "webp" => function_exists("imagewebp"),
-            "avif" => function_exists("imageavif") && !empty(gd_info()["AVIF Support"]),
-        ]));
+        return array_map(strtolower(...), $this->loader->formats());
+    }
+
+    private function quality(): ?int
+    {
+        $quality = $this->site->config["images"]["quality"];
+
+        return $quality === null ? null : (int) $quality;
     }
 
     /**
@@ -197,21 +206,15 @@ final class Images
     }
 
     /**
-     * The width and height of a JPEG, PNG or WebP as it's shown, or null for
-     * anything GD can't resize here. GIFs are left alone so they keep moving.
+     * The width and height of an image as it's shown, or null for anything
+     * the loader can't resize
      *
      * @return array{int, int}|null
      */
     private function size(string $file): ?array
     {
         if (!array_key_exists($file, $this->sizes)) {
-            $readable = match (self::extension($file)) {
-                "jpg", "jpeg", "png" => function_exists("imagecreatefromstring"),
-                "webp" => function_exists("imagecreatefromwebp"),
-                "avif" => function_exists("imagecreatefromavif"),
-                default => false,
-            };
-            $size = $readable ? @getimagesize($file) : false;
+            $size = in_array(self::extension($file), $this->formats(), true) ? @getimagesize($file) : false;
 
             // Photos turned on their side are shown upright
             if ($size && in_array(self::orientation($file), [5, 6, 7, 8], true)) {
@@ -224,74 +227,18 @@ final class Images
         return $this->sizes[$file] ?: null;
     }
 
-    private function resize(string $file, string $cache, int $width, string $format): void
-    {
-        $image = @imagecreatefromstring(file_get_contents($file)) ?: throw new \RuntimeException("GD couldn't read $file");
-        $image = self::orient($image, self::orientation($file));
-
-        $naturalWidth = imagesx($image);
-        $naturalHeight = imagesy($image);
-        $height = max(1, (int) round($naturalHeight * $width / $naturalWidth));
-        $resized = imagecreatetruecolor($width, $height);
-
-        if (in_array($format, ["jpg", "jpeg"], true)) {
-            // JPEGs have no transparency, so it becomes white
-            imagefill($resized, 0, 0, imagecolorallocate($resized, 255, 255, 255));
-        } else {
-            imagealphablending($resized, false);
-            imagesavealpha($resized, true);
-            imagefill($resized, 0, 0, imagecolorallocatealpha($resized, 0, 0, 0, 127));
-        }
-
-        imagecopyresampled($resized, $image, 0, 0, 0, 0, $width, $height, $naturalWidth, $naturalHeight);
-
-        if (!is_dir(dirname($cache))) {
-            mkdir(dirname($cache), 0777, true);
-        }
-
-        // Written then moved, so a request never reads a half-written file
-        $temporary = "$cache." . getmypid() . ".tmp";
-        $quality = (int) $this->site->config["images"]["quality"];
-
-        match ($format) {
-            "jpg", "jpeg" => imagejpeg($resized, $temporary, $quality),
-            "png" => imagepng($resized, $temporary),
-            "webp" => imagewebp($resized, $temporary, $quality),
-            "avif" => imageavif($resized, $temporary, $quality),
-        };
-
-        rename($temporary, $cache);
-    }
-
-    private function cache(): string
-    {
-        return $this->site->config["images"]["cache"] ?? sys_get_temp_dir() . "/jumbo-images-" . substr(md5($this->site->root), 0, 8);
-    }
-
-    private static function orientation(string $file): int
+    /**
+     * The EXIF orientation of a JPEG, 1 when it's upright
+     *
+     * @internal
+     */
+    public static function orientation(string $file): int
     {
         if (!in_array(self::extension($file), ["jpg", "jpeg"], true) || !function_exists("exif_read_data")) {
             return 1;
         }
 
         return (int) (@exif_read_data($file)["Orientation"] ?? 1);
-    }
-
-    private static function orient(\GdImage $image, int $orientation): \GdImage
-    {
-        if (in_array($orientation, [2, 4, 5, 7], true)) {
-            imageflip($image, $orientation === 4 ? IMG_FLIP_VERTICAL : IMG_FLIP_HORIZONTAL);
-        }
-
-        // GD turns images anticlockwise
-        $angle = match ($orientation) {
-            3 => 180,
-            5, 8 => 90,
-            6, 7 => -90,
-            default => 0,
-        };
-
-        return $angle === 0 ? $image : imagerotate($image, $angle, 0);
     }
 
     private static function element(array $attributes): string

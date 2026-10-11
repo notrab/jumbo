@@ -4,6 +4,8 @@ namespace Dumbo\Jumbo\Tests;
 
 use Dumbo\Dumbo;
 use Dumbo\Jumbo\Builder;
+use Dumbo\Jumbo\Images\Bunny;
+use Dumbo\Jumbo\Images\Loader;
 use Dumbo\Jumbo\Site;
 use PHPUnit\Framework\Attributes\RequiresPhpExtension;
 use PHPUnit\Framework\TestCase;
@@ -33,15 +35,20 @@ class ImagesTest extends TestCase
         exec("rm -rf " . escapeshellarg($this->dir));
     }
 
-    private function site(array $config = []): Site
+    private function site(array $config = [], array $images = []): Site
     {
-        return new Site($this->dir, ["images" => ["widths" => [320, 640, 960], "cache" => "$this->dir/cache"], ...$config], new Dumbo(Dumbo::ENV_PRODUCTION));
+        return new Site($this->dir, ["images" => ["widths" => [320, 640, 960], "cache" => "$this->dir/cache", ...$images], ...$config], new Dumbo(Dumbo::ENV_PRODUCTION));
+    }
+
+    private function version(): string
+    {
+        return substr(md5(filemtime("$this->dir/public/photos/red box.png") . ":" . filesize("$this->dir/public/photos/red box.png")), 0, 8);
     }
 
     public function testUrlsRoundUpToAnAllowedWidth(): void
     {
         $site = $this->site();
-        $version = substr(md5(filemtime("$this->dir/public/photos/red box.png") . ":" . filesize("$this->dir/public/photos/red box.png")), 0, 8);
+        $version = $this->version();
 
         $this->assertSame("/_image/640/photos/red%20box.png.webp?v=$version", $site->image("/photos/red%20box.png", 500));
         $this->assertSame("/_image/1000/photos/red%20box.png.webp?v=$version", $site->image("/photos/red%20box.png"));
@@ -110,5 +117,54 @@ class ImagesTest extends TestCase
         // Every URL in a srcset gets the base path
         $html = file_get_contents("$out/index.html");
         $this->assertMatchesRegularExpression('#src="/sub/_image/640/[^"]+" srcset="/sub/_image/320/[^ ]+ 320w, /sub/_image/640/#', $html);
+    }
+
+    public function testBunnyUrls(): void
+    {
+        $site = $this->site(images: ["loader" => new Bunny("https://acme.b-cdn.net/")]);
+        $version = $this->version();
+
+        $this->assertSame("https://acme.b-cdn.net/photos/red%20box.png?width=640&format=webp&quality=80&v=$version", $site->image("/photos/red%20box.png", 500));
+        $this->assertSame("https://acme.b-cdn.net/photos/red%20box.png?width=320&quality=80&v=$version", $site->image("/photos/red%20box.png", 100, "png"));
+        $this->assertSame("https://acme.b-cdn.net/photos/red%20box.png?width=1000&format=jpeg&quality=80&v=$version", $site->image("/photos/red%20box.png", format: "jpg"));
+        $this->assertSame("/logo.svg", $site->image("/logo.svg", 100));
+
+        $site = $this->site(images: ["loader" => new Bunny(params: ["sharpen" => true, "quality" => 90]), "format" => null, "quality" => null]);
+        $this->assertSame("/photos/red%20box.png?width=640&quality=90&sharpen=true&v=$version", $site->image("/photos/red%20box.png", 640));
+    }
+
+    public function testBunnyImagesOnTheSitesOwnHost(): void
+    {
+        $site = $this->site(["url" => "https://example.com/sub"], ["loader" => new Bunny()]);
+
+        $this->assertMatchesRegularExpression('#^<img src="/photos/red%20box.png\?width=640&amp;format=webp&amp;quality=80&amp;v=\w+" srcset="/photos/red%20box.png\?width=320&amp;[^ ]+ 320w, /photos/red%20box.png\?width=640&amp;[^ ]+ 640w" sizes="\(min-width: 400px\) 400px, 100vw" width="400" height="200"#', $site->img("/photos/red%20box.png", width: 400));
+        $this->assertSame(404, $site->app->request("/_image/320/photos/red%20box.png.webp")->getStatusCode());
+
+        // Nothing to resize in the build, and the URLs get the base path
+        $out = "$this->dir/dist";
+        $files = (new Builder($site, $out))->build();
+
+        $this->assertEmpty(array_filter($files, fn(string $file) => str_starts_with($file, "_image/")));
+        $this->assertMatchesRegularExpression('#src="/sub/photos/red%20box.png\?width=640&amp;[^"]+" srcset="/sub/photos/red%20box.png\?width=320&amp;#', file_get_contents("$out/index.html"));
+    }
+
+    public function testCustomLoaders(): void
+    {
+        $imgix = new class implements Loader {
+            public function formats(): array
+            {
+                return ["png"];
+            }
+
+            public function url(string $path, int $width, string $format, ?int $quality, string $version): string
+            {
+                return "https://acme.imgix.net$path?w=$width&fm=$format&q=$quality";
+            }
+        };
+        $site = $this->site(images: ["loader" => $imgix]);
+
+        // WebP isn't one of its formats, so the image keeps its own
+        $this->assertSame("https://acme.imgix.net/photos/red%20box.png?w=640&fm=png&q=80", $site->image("/photos/red%20box.png", 600));
+        $this->assertStringContainsString('srcset="https://acme.imgix.net/photos/red%20box.png?w=320&amp;fm=png&amp;q=80 320w', (string) $site->app->request("/post")->getBody());
     }
 }
